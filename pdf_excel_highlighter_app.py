@@ -13,7 +13,7 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
 OBS: Ritningsförteckning fungerar bara som excel just nu.
-v.1.14
+v.1.15
 """)
 
 # Step 1: Upload multiple PDF files
@@ -53,8 +53,8 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
                 reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
 
-            elif st.session_state.uploaded_reference.name.lower().endswith(".pdf"):
-                pdf_bytes = BytesIO(st.session_state.uploaded_reference.read())
+            elif uploaded_reference.name.lower().endswith(".pdf"):
+                pdf_bytes = BytesIO(uploaded_reference.read())
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
                     temp_pdf.write(pdf_bytes.read())
                     temp_pdf.flush()
