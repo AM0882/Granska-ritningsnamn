@@ -7,15 +7,14 @@ import re
 import tempfile
 import pdfplumber
 from io import BytesIO
-
 st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-OBS: Ritningsförteckning fungerar bara att ladda upp som Excel just nu.  
-v.6
+OBS: Ritningsförteckning fungerar bara som Excel just nu.  
+v.7
 """)
 
 # Initialize session state
@@ -37,6 +36,10 @@ if st.button("Återställ filer"):
 # Start processing button
 start_processing = st.button("Starta jämförelse")
 
+def clean_text(text):
+    text = str(text).strip().lower()
+    return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
+
 if start_processing and st.session_state.uploaded_pdfs and st.session_state.uploaded_reference:
     with st.spinner("Bearbetar filer..."):
         try:
@@ -45,7 +48,7 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
 
             # Step 1: Extract and clean PDF filenames
             pdf_names = [pdf.name for pdf in st.session_state.uploaded_pdfs]
-            cleaned_pdf_names = [re.sub(r'\.(pdf)$', '', name.strip().lower()) for name in pdf_names]
+            cleaned_pdf_names = [clean_text(name) for name in pdf_names]
             df_pdf_list = pd.DataFrame(pdf_names, columns=['File Name'])
             progress.progress(1 / total_steps)
 
@@ -54,11 +57,10 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
             df_pdf_list.to_excel(temp_file2.name, index=False)
             progress.progress(2 / total_steps)
 
-            # Step 3: Read and clean reference text
-            def clean_text(text):
-                text = str(text).strip().lower()
-                return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
+            st.download_button("Ladda ner PDF-lista som Excel", data=open(temp_file2.name, "rb").read(), file_name="pdf_lista.xlsx")
 
+            # Step 3: Read and clean reference text
+            reference_texts = set()
             if st.session_state.uploaded_reference.name.lower().endswith(".xlsx"):
                 excel_bytes = BytesIO(st.session_state.uploaded_reference.read())
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
@@ -76,7 +78,23 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
                             if page_text:
                                 text += page_text + "\n"
                 lines = [line.strip() for line in text.splitlines() if line.strip()]
-                reference_texts = set([clean_text(line) for line in lines])
+                cleaned_lines = [clean_text(line) for line in lines]
+                reference_texts = set(cleaned_lines)
+
+                # Show and download cleaned reference list
+                st.subheader("Extraherad och rensad referenslista från PDF")
+                for item in sorted(reference_texts):
+                    st.write(item)
+
+                df_output = pd.DataFrame(sorted(reference_texts), columns=["Referensnamn"])
+                output_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+                df_output.to_excel(output_file.name, index=False)
+
+                st.download_button(
+                    label="Ladda ner referenslista som Excel",
+                    data=open(output_file.name, "rb").read(),
+                    file_name="referenslista.xlsx"
+                )
 
             progress.progress(3 / total_steps)
 
