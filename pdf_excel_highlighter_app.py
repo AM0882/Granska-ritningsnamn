@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
@@ -15,7 +14,7 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
 OBS: Ritningsförteckning fungerar bara som Excel just nu.  
-v.1.11
+v.1.12
 """)
 
 # Initialize session state
@@ -23,14 +22,6 @@ if "uploaded_pdfs" not in st.session_state:
     st.session_state.uploaded_pdfs = None
 if "uploaded_reference" not in st.session_state:
     st.session_state.uploaded_reference = None
-if "reset_triggered" not in st.session_state:
-    st.session_state.reset_triggered = False
-
-# Handle reset
-if st.session_state.reset_triggered:
-    st.session_state.uploaded_pdfs = None
-    st.session_state.uploaded_reference = None
-    st.session_state.reset_triggered = False
 
 # File uploaders
 st.session_state.uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
@@ -38,15 +29,12 @@ st.session_state.uploaded_reference = st.file_uploader("Ladda upp ritningsförte
 
 # Reset button
 if st.button("Återställ filer"):
-    st.session_state.reset_triggered = True
+    st.session_state.uploaded_pdfs = None
+    st.session_state.uploaded_reference = None
     st.experimental_rerun()
 
 # Start processing button
 start_processing = st.button("Starta jämförelse")
-
-def clean_text(text):
-    text = str(text).strip().lower()
-    return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
 if start_processing and st.session_state.uploaded_pdfs and st.session_state.uploaded_reference:
     with st.spinner("Bearbetar filer..."):
@@ -56,7 +44,7 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
 
             # Step 1: Extract and clean PDF filenames
             pdf_names = [pdf.name for pdf in st.session_state.uploaded_pdfs]
-            cleaned_pdf_names = [clean_text(name) for name in pdf_names]
+            cleaned_pdf_names = [re.sub(r'\.(pdf)$', '', name.strip().lower()) for name in pdf_names]
             df_pdf_list = pd.DataFrame(pdf_names, columns=['File Name'])
             progress.progress(1 / total_steps)
 
@@ -65,23 +53,26 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
             df_pdf_list.to_excel(temp_file2.name, index=False)
             progress.progress(2 / total_steps)
 
-            st.download_button("Ladda ner PDF-lista som Excel", data=open(temp_file2.name, "rb").read(), file_name="pdf_lista.xlsx")
-
             # Step 3: Read and clean reference text
-            reference_texts = set()
+            def clean_text(text):
+                text = str(text).strip().lower()
+                return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
             if st.session_state.uploaded_reference.name.lower().endswith(".xlsx"):
                 excel_bytes = BytesIO(st.session_state.uploaded_reference.read())
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
                 reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
 
+                        
             elif st.session_state.uploaded_reference.name.lower().endswith(".pdf"):
                 pdf_bytes = BytesIO(st.session_state.uploaded_reference.read())
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
                     temp_pdf.write(pdf_bytes.read())
                     temp_pdf.flush()
                     with pdfplumber.open(temp_pdf.name) as pdf:
+                        reference_texts = set()
                         tables_found = False
+            
                         for page in pdf.pages:
                             tables = page.extract_tables()
                             if tables:
@@ -91,13 +82,15 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
                                         for cell in row:
                                             if cell:
                                                 reference_texts.add(clean_text(cell))
-                        if not tables_found:
-                            for page in pdf.pages:
-                                page_text = page.extract_text()
-                                if page_text:
-                                    lines = [line.strip() for line in page_text.splitlines() if line.strip()]
-                                    for line in lines:
-                                        reference_texts.add(clean_text(line))
+
+            # Fallback to text extraction if no tables were found
+            if not tables_found:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        lines = [line.strip() for line in page_text.splitlines() if line.strip()]
+                        for line in lines:
+                            reference_texts.add(clean_text(line))
 
 
             progress.progress(3 / total_steps)
