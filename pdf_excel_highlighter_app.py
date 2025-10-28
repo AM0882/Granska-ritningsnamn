@@ -101,4 +101,3 @@ if uploaded_pdfs and uploaded_reference:
 
         except Exception as e:
             st.error(f"Ett fel uppstod: {e}")
-``
