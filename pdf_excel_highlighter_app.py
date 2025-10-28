@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
@@ -7,16 +6,6 @@ import re
 import tempfile
 import pdfplumber
 from io import BytesIO
-from pdf2image import convert_from_path
-import pytesseract
-def extract_text_with_ocr(pdf_path):
-    images = convert_from_path(pdf_path)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img, lang='eng') + "\n"
-    return text
-``
-
 st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
@@ -24,7 +13,6 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
 """)
-
 
 # Step 1: Upload multiple PDF files
 uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
@@ -59,25 +47,19 @@ if uploaded_pdfs and uploaded_reference:
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
                 reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
 
-           
-elif uploaded_reference.name.lower().endswith(".pdf"):
-    pdf_bytes = BytesIO(uploaded_reference.read())
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-        temp_pdf.write(pdf_bytes.read())
-        temp_pdf.flush()
-        with pdfplumber.open(temp_pdf.name) as pdf:
-            text = ""
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-
-        # If no text was extracted, use OCR
-        if not text.strip():
-            text = extract_text_with_ocr(temp_pdf.name)
-
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    reference_texts = set([clean_text(line) for line in lines])
+            elif uploaded_reference.name.lower().endswith(".pdf"):
+                pdf_bytes = BytesIO(uploaded_reference.read())
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+                    temp_pdf.write(pdf_bytes.read())
+                    temp_pdf.flush()
+                    with pdfplumber.open(temp_pdf.name) as pdf:
+                        text = ""
+                        for page in pdf.pages:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text += page_text + "\n"
+                lines = [line.strip() for line in text.splitlines() if line.strip()]
+                reference_texts = set([clean_text(line) for line in lines])
 
             progress.progress(3 / total_steps)
 
