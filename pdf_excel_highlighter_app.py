@@ -22,7 +22,9 @@ uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_mul
 # Step 2: Upload the reference file (Excel or PDF)
 uploaded_reference = st.file_uploader("Ladda upp ritningsförteckning", type=["xlsx", "pdf"])
 
-if uploaded_pdfs and uploaded_reference:
+start_processing = st.button("Starta jämförelse")
+
+if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
         try:
             progress = st.progress(0)
