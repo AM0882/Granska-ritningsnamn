@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from openpyxl import load_workbook
@@ -6,32 +7,44 @@ import re
 import tempfile
 import pdfplumber
 from io import BytesIO
+
 st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
-samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
-OBS: Ritningsförteckning fungerar bara som excel just nu.
+samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
+OBS: Ritningsförteckning fungerar bara att ladda upp som Excel just nu.  
 v.6
 """)
 
-# Step 1: Upload multiple PDF files
-uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
+# Initialize session state
+if "uploaded_pdfs" not in st.session_state:
+    st.session_state.uploaded_pdfs = None
+if "uploaded_reference" not in st.session_state:
+    st.session_state.uploaded_reference = None
 
-# Step 2: Upload the reference file (Excel or PDF)
-uploaded_reference = st.file_uploader("Ladda upp ritningsförteckning", type=["xlsx", "pdf"])
+# File uploaders
+st.session_state.uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
+st.session_state.uploaded_reference = st.file_uploader("Ladda upp ritningsförteckning", type=["xlsx", "pdf"])
 
+# Reset button
+if st.button("Återställ filer"):
+    st.session_state.uploaded_pdfs = None
+    st.session_state.uploaded_reference = None
+    st.experimental_rerun()
+
+# Start processing button
 start_processing = st.button("Starta jämförelse")
 
-if start_processing and uploaded_pdfs and uploaded_reference:
+if start_processing and st.session_state.uploaded_pdfs and st.session_state.uploaded_reference:
     with st.spinner("Bearbetar filer..."):
         try:
             progress = st.progress(0)
             total_steps = 6
 
             # Step 1: Extract and clean PDF filenames
-            pdf_names = [pdf.name for pdf in uploaded_pdfs]
+            pdf_names = [pdf.name for pdf in st.session_state.uploaded_pdfs]
             cleaned_pdf_names = [re.sub(r'\.(pdf)$', '', name.strip().lower()) for name in pdf_names]
             df_pdf_list = pd.DataFrame(pdf_names, columns=['File Name'])
             progress.progress(1 / total_steps)
@@ -46,13 +59,13 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                 text = str(text).strip().lower()
                 return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
-            if uploaded_reference.name.lower().endswith(".xlsx"):
-                excel_bytes = BytesIO(uploaded_reference.read())
+            if st.session_state.uploaded_reference.name.lower().endswith(".xlsx"):
+                excel_bytes = BytesIO(st.session_state.uploaded_reference.read())
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
                 reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
 
-            elif uploaded_reference.name.lower().endswith(".pdf"):
-                pdf_bytes = BytesIO(uploaded_reference.read())
+            elif st.session_state.uploaded_reference.name.lower().endswith(".pdf"):
+                pdf_bytes = BytesIO(st.session_state.uploaded_reference.read())
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
                     temp_pdf.write(pdf_bytes.read())
                     temp_pdf.flush()
