@@ -47,19 +47,19 @@ if uploaded_pdfs and uploaded_reference:
                 excel_bytes = BytesIO(uploaded_reference.read())
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
             
-elif uploaded_reference.name.lower().endswith(".pdf"):
-    pdf_bytes = BytesIO(uploaded_reference.read())
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-        temp_pdf.write(pdf_bytes.read())
-        temp_pdf.flush()
-        with pdfplumber.open(temp_pdf.name) as pdf:
-            text = ""
-            for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    df_ref = pd.DataFrame(lines)
+            elif uploaded_reference.name.lower().endswith(".pdf"):
+                pdf_bytes = BytesIO(uploaded_reference.read())
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+                    temp_pdf.write(pdf_bytes.read())
+                    temp_pdf.flush()
+                    with pdfplumber.open(temp_pdf.name) as pdf:
+                        text = ""
+                        for page in pdf.pages:
+                            page_text = page.extract_text()
+                            if page_text:
+                                text += page_text + "\n"
+                lines = [line.strip() for line in text.splitlines() if line.strip()]
+                df_ref = pd.DataFrame(lines)
                 
 
             reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
