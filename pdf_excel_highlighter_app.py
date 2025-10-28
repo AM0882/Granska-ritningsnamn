@@ -4,6 +4,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import PatternFill
 import re
 import tempfile
+import pdfplumber
 from io import BytesIO
 
 st.title("Jämför ritningsförteckning med PDF-filer")
