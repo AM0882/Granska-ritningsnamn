@@ -15,7 +15,7 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
 OBS: Ritningsförteckning fungerar bara som Excel just nu.  
-v.8
+v. 1.9
 """)
 
 # Initialize session state
@@ -64,19 +64,35 @@ if start_processing and st.session_state.uploaded_pdfs and st.session_state.uplo
                 df_ref = pd.read_excel(excel_bytes, header=None, engine="openpyxl")
                 reference_texts = set(df_ref.astype(str).stack().map(clean_text).unique())
 
-            elif st.session_state.uploaded_reference.name.lower().endswith(".pdf"):
-                pdf_bytes = BytesIO(st.session_state.uploaded_reference.read())
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
-                    temp_pdf.write(pdf_bytes.read())
-                    temp_pdf.flush()
-                    with pdfplumber.open(temp_pdf.name) as pdf:
-                        text = ""
-                        for page in pdf.pages:
-                            page_text = page.extract_text()
-                            if page_text:
-                                text += page_text + "\n"
-                lines = [line.strip() for line in text.splitlines() if line.strip()]
-                reference_texts = set([clean_text(line) for line in lines])
+
+elif st.session_state.uploaded_reference.name.lower().endswith(".pdf"):
+    pdf_bytes = BytesIO(st.session_state.uploaded_reference.read())
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_pdf:
+        temp_pdf.write(pdf_bytes.read())
+        temp_pdf.flush()
+        with pdfplumber.open(temp_pdf.name) as pdf:
+            reference_texts = set()
+            tables_found = False
+
+            for page in pdf.pages:
+                tables = page.extract_tables()
+                if tables:
+                    tables_found = True
+                    for table in tables:
+                        for row in table:
+                            for cell in row:
+                                if cell:
+                                    reference_texts.add(clean_text(cell))
+
+            # Fallback to text extraction if no tables were found
+            if not tables_found:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        lines = [line.strip() for line in page_text.splitlines() if line.strip()]
+                        for line in lines:
+                            reference_texts.add(clean_text(line))
+
 
             progress.progress(3 / total_steps)
 
