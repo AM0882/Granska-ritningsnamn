@@ -9,6 +9,13 @@ import pdfplumber
 from io import BytesIO
 from pdf2image import convert_from_path
 import pytesseract
+def extract_text_with_ocr(pdf_path):
+    images = convert_from_path(pdf_path)
+    text = ""
+    for img in images:
+        text += pytesseract.image_to_string(img, lang='eng') + "\n"
+    return text
+``
 
 st.title("Jämför ritningsförteckning med PDF-filer")
 
@@ -18,13 +25,6 @@ I resultatet fås en ritningsförteckning där alla ritningar som finns med som 
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
 """)
 
-def extract_text_with_ocr(pdf_path):
-    images = convert_from_path(pdf_path)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img, lang='eng') + "\n"
-    return text
-``
 
 # Step 1: Upload multiple PDF files
 uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
