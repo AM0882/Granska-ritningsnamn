@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openpyxl import Workbook
@@ -7,14 +6,13 @@ import re
 import tempfile
 import pdfplumber
 from io import BytesIO
-
 st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.20
+v.1.21
 """)
 
 # Upload files
@@ -80,12 +78,12 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             progress.progress(2 / total_steps)
 
-            # Step 3: Filter reference texts using regex and exclude generic terms
+            # Step 3: Filter reference texts using regex, exclude generic terms and dates
             filtered_reference_texts = [
                 ref for ref in reference_texts
                 if drawing_pattern.match(ref)
                 and not any(term in ref for term in exclude_terms)
-                and not re.match(r'^202\d', ref)  # Exclude anything starting with 2020, 2021, etc.
+                and not re.match(r'^202\d', ref)  # Exclude dates starting with 202
             ]
 
             # Step 4: Create Excel with match status and highlight matches
@@ -121,9 +119,24 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             df_unmatched.to_excel(unmatched_file.name, index=False)
             progress.progress(1.0)
 
+            # Store files in session state for persistent download buttons
+            st.session_state["result_file"] = result_file.name
+            st.session_state["unmatched_file"] = unmatched_file.name
+
             st.success("Bearbetning klar!")
-            st.download_button("Ladda ner ritningsförteckning med markering", data=open(result_file.name, "rb").read(), file_name="ritningsförteckning_markering.xlsx")
-            st.download_button("Ladda ner lista på omatchade PDFer", data=open(unmatched_file.name, "rb").read(), file_name="omatchade_ritningar.xlsx")
 
         except Exception as e:
             st.error(f"Ett fel uppstod: {e}")
+
+# Show download buttons if files exist in session state
+if "result_file" in st.session_state and "unmatched_file" in st.session_state:
+    st.download_button(
+        "Ladda ner ritningsförteckning med markering",
+        data=open(st.session_state["result_file"], "rb").read(),
+        file_name="ritningsförteckning_markering.xlsx"
+    )
+    st.download_button(
+        "Ladda ner lista på omatchade PDFer",
+        data=open(st.session_state["unmatched_file"], "rb").read(),
+        file_name="omatchade_ritningar.xlsx"
+    )
