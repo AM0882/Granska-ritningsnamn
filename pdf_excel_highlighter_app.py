@@ -13,7 +13,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.16
+v.1.17
 """)
 
 # Upload files
@@ -27,6 +27,12 @@ start_processing = st.button("Starta jämförelse")
 def clean_text(text):
     text = str(text).strip().lower()
     return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
+
+# Flexible regex for drawing names
+drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
+
+# Generic words to exclude
+exclude_terms = {"plan", "del", "sektion", "fasad", "1:50", "1:100"}
 
 if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
