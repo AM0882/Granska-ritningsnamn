@@ -11,7 +11,7 @@ st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
-I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
+I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
 v.1.25
 """)
