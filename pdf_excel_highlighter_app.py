@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from openpyxl import Workbook
@@ -13,7 +14,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.17
+v.1.19
 """)
 
 # Upload files
@@ -79,7 +80,13 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             progress.progress(2 / total_steps)
 
-            # Step 3: Create Excel with match status and highlight matches
+            # Step 3: Filter reference texts using regex and exclude generic terms
+            filtered_reference_texts = [
+                ref for ref in reference_texts
+                if drawing_pattern.match(ref) and not any(term in ref for term in exclude_terms)
+            ]
+
+            # Step 4: Create Excel with match status and highlight matches
             wb = Workbook()
             ws = wb.active
             ws.title = "Ritningsförteckning"
@@ -90,7 +97,7 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             # Highlight style
             fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-            for ref in reference_texts:
+            for ref in filtered_reference_texts:
                 match_status = "Matchad" if ref in cleaned_pdf_names else "Ej matchad"
                 row = [ref, match_status]
                 ws.append(row)
@@ -100,13 +107,13 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             progress.progress(3 / total_steps)
 
-            # Step 4: Save highlighted Excel file
+            # Step 5: Save highlighted Excel file
             result_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
             wb.save(result_file.name)
             progress.progress(4 / total_steps)
 
-            # Step 5: Save unmatched PDF names
-            unmatched_cleaned = [name for name in cleaned_pdf_names if name not in reference_texts]
+            # Step 6: Save unmatched PDF names
+            unmatched_cleaned = [name for name in cleaned_pdf_names if name not in filtered_reference_texts]
             df_unmatched = pd.DataFrame(unmatched_cleaned, columns=["Omatchade PDF-namn"])
             unmatched_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
             df_unmatched.to_excel(unmatched_file.name, index=False)
