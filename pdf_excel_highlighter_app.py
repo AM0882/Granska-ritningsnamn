@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from openpyxl import Workbook
@@ -14,7 +13,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.23
+v.1.24
 """)
 
 # Upload files
@@ -79,7 +78,7 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                 and not re.match(r'^202\d', ref)  # Exclude dates starting with 202
             ]
 
-            # Prepare preview DataFrame
+            # Prepare preview DataFrame for reference drawings
             preview_data = []
             for ref in filtered_reference_texts:
                 match_status = "Matchad" if ref in cleaned_pdf_names else "Ej matchad"
@@ -87,9 +86,16 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             preview_df = pd.DataFrame(preview_data)
 
-            # Show preview table
-            st.subheader("Förhandsgranskning av jämförelse")
+            # Show preview table for reference drawings
+            st.subheader("Förhandsgranskning av ritningsförteckning")
             st.dataframe(preview_df)
+
+            # Prepare unmatched PDF names preview
+            unmatched_cleaned = [name for name in cleaned_pdf_names if name not in filtered_reference_texts]
+            unmatched_df = pd.DataFrame(unmatched_cleaned, columns=["Omatchade PDF-namn"])
+
+            st.subheader("Förhandsgranskning av omatchade PDF-filer")
+            st.dataframe(unmatched_df)
 
             # Step 4: Create Excel with match status and highlight matches
             wb = Workbook()
@@ -112,10 +118,8 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             progress.progress(4 / total_steps)
 
             # Step 6: Save unmatched PDF names
-            unmatched_cleaned = [name for name in cleaned_pdf_names if name not in filtered_reference_texts]
-            df_unmatched = pd.DataFrame(unmatched_cleaned, columns=["Omatchade PDF-namn"])
             unmatched_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-            df_unmatched.to_excel(unmatched_file.name, index=False)
+            unmatched_df.to_excel(unmatched_file.name, index=False)
             progress.progress(1.0)
 
             # Store files in session state for persistent download buttons
