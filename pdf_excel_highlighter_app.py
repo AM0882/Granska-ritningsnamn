@@ -13,7 +13,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.25
+v.1.26
 """)
 
 # Upload files
@@ -33,9 +33,6 @@ drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNOR
 
 # Regex for extracting codes from PDF (handles both formats)
 drawing_number_pattern = re.compile(r'\b[0-9A-Za-z]+(?:-[0-9A-Za-z]+){2,}\b')
-
-# Generic words to exclude
-exclude_terms = {"plan", "del", "sektion", "fasad", "1:50", "1:100"}
 
 if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
