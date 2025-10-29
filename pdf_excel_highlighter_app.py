@@ -14,7 +14,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.19
+v.1.20
 """)
 
 # Upload files
@@ -83,7 +83,9 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             # Step 3: Filter reference texts using regex and exclude generic terms
             filtered_reference_texts = [
                 ref for ref in reference_texts
-                if drawing_pattern.match(ref) and not any(term in ref for term in exclude_terms)
+                if drawing_pattern.match(ref)
+                and not any(term in ref for term in exclude_terms)
+                and not re.match(r'^202\d', ref)  # Exclude anything starting with 2020, 2021, etc.
             ]
 
             # Step 4: Create Excel with match status and highlight matches
