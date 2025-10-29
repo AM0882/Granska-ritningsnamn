@@ -13,7 +13,7 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.24
+v.1.25
 """)
 
 # Upload files
@@ -28,11 +28,11 @@ def clean_text(text):
     text = str(text).strip().lower()
     return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
-# Regex for valid drawing names
+# Flexible regex for valid drawing/document codes
 drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
 
-# Regex for extracting drawing numbers from PDF
-drawing_number_pattern = re.compile(r'\b[A-Z]-\d{2}-\d-[A-Z0-9]{4,}\b', re.IGNORECASE)
+# Regex for extracting codes from PDF (handles both formats)
+drawing_number_pattern = re.compile(r'\b[0-9A-Za-z]+(?:-[0-9A-Za-z]+){2,}\b')
 
 # Generic words to exclude
 exclude_terms = {"plan", "del", "sektion", "fasad", "1:50", "1:100"}
