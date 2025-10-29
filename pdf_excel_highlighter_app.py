@@ -14,18 +14,8 @@ st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.22
+v.1.23
 """)
-
-# Sidebar configuration
-st.sidebar.header("Filterinställningar")
-exclude_terms_input = st.sidebar.text_area(
-    "Ord att exkludera (kommaseparerade)",
-    value="plan,del,sektion,fasad,1:50,1:100"
-)
-exclude_terms = {term.strip().lower() for term in exclude_terms_input.split(",") if term.strip()}
-
-exclude_dates = st.sidebar.checkbox("Exkludera datum som börjar med 202", value=True)
 
 # Upload files
 uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
@@ -39,8 +29,14 @@ def clean_text(text):
     text = str(text).strip().lower()
     return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
-# Flexible regex for drawing names
+# Regex for valid drawing names
 drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
+
+# Regex for extracting drawing numbers from PDF
+drawing_number_pattern = re.compile(r'\b[A-Z]-\d{2}-\d-[A-Z0-9]{4,}\b', re.IGNORECASE)
+
+# Generic words to exclude
+exclude_terms = {"plan", "del", "sektion", "fasad", "1:50", "1:100"}
 
 if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
@@ -67,23 +63,11 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                     temp_pdf.write(pdf_bytes.read())
                     temp_pdf.flush()
                     with pdfplumber.open(temp_pdf.name) as pdf:
-                        tables_found = False
                         for page in pdf.pages:
-                            tables = page.extract_tables()
-                            if tables:
-                                tables_found = True
-                                for table in tables:
-                                    for row in table:
-                                        for cell in row:
-                                            if cell:
-                                                reference_texts.append(clean_text(cell))
-                        if not tables_found:
-                            for page in pdf.pages:
-                                page_text = page.extract_text()
-                                if page_text:
-                                    lines = [line.strip() for line in page_text.splitlines() if line.strip()]
-                                    for line in lines:
-                                        reference_texts.append(clean_text(line))
+                            page_text = page.extract_text()
+                            if page_text:
+                                matches = drawing_number_pattern.findall(page_text)
+                                reference_texts.extend([clean_text(m) for m in matches])
 
             progress.progress(2 / total_steps)
 
@@ -92,42 +76,42 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                 ref for ref in reference_texts
                 if drawing_pattern.match(ref)
                 and not any(term in ref for term in exclude_terms)
-                and (not exclude_dates or not re.match(r'^202\d', ref))
+                and not re.match(r'^202\d', ref)  # Exclude dates starting with 202
             ]
 
-            # Step 4: Sort so matched drawings appear first
-            sorted_refs = sorted(
-                filtered_reference_texts,
-                key=lambda x: (x not in cleaned_pdf_names, x)
-            )
+            # Prepare preview DataFrame
+            preview_data = []
+            for ref in filtered_reference_texts:
+                match_status = "Matchad" if ref in cleaned_pdf_names else "Ej matchad"
+                preview_data.append({"Referensnamn": ref, "Matchstatus": match_status})
 
-            # Step 5: Create Excel with match status and highlight matches
+            preview_df = pd.DataFrame(preview_data)
+
+            # Show preview table
+            st.subheader("Förhandsgranskning av jämförelse")
+            st.dataframe(preview_df)
+
+            # Step 4: Create Excel with match status and highlight matches
             wb = Workbook()
             ws = wb.active
             ws.title = "Ritningsförteckning"
-
-            # Header
             ws.append(["Referensnamn", "Matchstatus"])
-
-            # Highlight style
             fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-            for ref in sorted_refs:
-                match_status = "Matchad" if ref in cleaned_pdf_names else "Ej matchad"
-                row = [ref, match_status]
-                ws.append(row)
-                if match_status == "Matchad":
+            for row in preview_data:
+                ws.append([row["Referensnamn"], row["Matchstatus"]])
+                if row["Matchstatus"] == "Matchad":
                     for cell in ws[ws.max_row]:
                         cell.fill = fill
 
             progress.progress(3 / total_steps)
 
-            # Step 6: Save highlighted Excel file
+            # Step 5: Save highlighted Excel file
             result_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
             wb.save(result_file.name)
             progress.progress(4 / total_steps)
 
-            # Step 7: Save unmatched PDF names
+            # Step 6: Save unmatched PDF names
             unmatched_cleaned = [name for name in cleaned_pdf_names if name not in filtered_reference_texts]
             df_unmatched = pd.DataFrame(unmatched_cleaned, columns=["Omatchade PDF-namn"])
             unmatched_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
@@ -137,20 +121,11 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             # Store files in session state for persistent download buttons
             st.session_state["result_file"] = result_file.name
             st.session_state["unmatched_file"] = unmatched_file.name
-            st.session_state["preview_data"] = pd.DataFrame(
-                [[ref, "Matchad" if ref in cleaned_pdf_names else "Ej matchad"] for ref in sorted_refs],
-                columns=["Referensnamn", "Matchstatus"]
-            )
 
             st.success("Bearbetning klar!")
 
         except Exception as e:
             st.error(f"Ett fel uppstod: {e}")
-
-# Show preview table if available
-if "preview_data" in st.session_state:
-    st.subheader("Förhandsgranskning av resultat")
-    st.dataframe(st.session_state["preview_data"], use_container_width=True)
 
 # Show download buttons if files exist in session state
 if "result_file" in st.session_state and "unmatched_file" in st.session_state:
