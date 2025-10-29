@@ -12,8 +12,9 @@ st.title("Jämför ritningsförteckning med PDF-filer")
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
-samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.26
+samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
+OBS ritningar måste ha namn med minst tre olika segment separerade med - eller _ (ex A-1-100 eller W_50.1_1_0100).
+v.1.27
 """)
 
 # Upload files
@@ -32,7 +33,7 @@ def clean_text(text):
 drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
 
 # Regex for extracting codes from PDF (handles both formats)
-drawing_number_pattern = re.compile(r'\b[0-9A-Za-z]+(?:-[0-9A-Za-z]+){2,}\b')
+drawing_number_pattern = re.compile(r'\b[0-9A-Za-z]+(?:[-_][0-9A-Za-z]+){2,}\b')
 
 if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
