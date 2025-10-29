@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from openpyxl import Workbook
@@ -6,14 +7,25 @@ import re
 import tempfile
 import pdfplumber
 from io import BytesIO
+
 st.title("Jämför ritningsförteckning med PDF-filer")
 
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där alla ritningar som finns med som PDF är gulmarkerade,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
-v.1.21
+v.1.22
 """)
+
+# Sidebar configuration
+st.sidebar.header("Filterinställningar")
+exclude_terms_input = st.sidebar.text_area(
+    "Ord att exkludera (kommaseparerade)",
+    value="plan,del,sektion,fasad,1:50,1:100"
+)
+exclude_terms = {term.strip().lower() for term in exclude_terms_input.split(",") if term.strip()}
+
+exclude_dates = st.sidebar.checkbox("Exkludera datum som börjar med 202", value=True)
 
 # Upload files
 uploaded_pdfs = st.file_uploader("Ladda upp PDF-filer", type=["pdf"], accept_multiple_files=True)
@@ -29,9 +41,6 @@ def clean_text(text):
 
 # Flexible regex for drawing names
 drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
-
-# Generic words to exclude
-exclude_terms = {"plan", "del", "sektion", "fasad", "1:50", "1:100"}
 
 if start_processing and uploaded_pdfs and uploaded_reference:
     with st.spinner("Bearbetar filer..."):
@@ -83,10 +92,16 @@ if start_processing and uploaded_pdfs and uploaded_reference:
                 ref for ref in reference_texts
                 if drawing_pattern.match(ref)
                 and not any(term in ref for term in exclude_terms)
-                and not re.match(r'^202\d', ref)  # Exclude dates starting with 202
+                and (not exclude_dates or not re.match(r'^202\d', ref))
             ]
 
-            # Step 4: Create Excel with match status and highlight matches
+            # Step 4: Sort so matched drawings appear first
+            sorted_refs = sorted(
+                filtered_reference_texts,
+                key=lambda x: (x not in cleaned_pdf_names, x)
+            )
+
+            # Step 5: Create Excel with match status and highlight matches
             wb = Workbook()
             ws = wb.active
             ws.title = "Ritningsförteckning"
@@ -97,7 +112,7 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             # Highlight style
             fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
 
-            for ref in filtered_reference_texts:
+            for ref in sorted_refs:
                 match_status = "Matchad" if ref in cleaned_pdf_names else "Ej matchad"
                 row = [ref, match_status]
                 ws.append(row)
@@ -107,12 +122,12 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             progress.progress(3 / total_steps)
 
-            # Step 5: Save highlighted Excel file
+            # Step 6: Save highlighted Excel file
             result_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
             wb.save(result_file.name)
             progress.progress(4 / total_steps)
 
-            # Step 6: Save unmatched PDF names
+            # Step 7: Save unmatched PDF names
             unmatched_cleaned = [name for name in cleaned_pdf_names if name not in filtered_reference_texts]
             df_unmatched = pd.DataFrame(unmatched_cleaned, columns=["Omatchade PDF-namn"])
             unmatched_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
@@ -122,11 +137,20 @@ if start_processing and uploaded_pdfs and uploaded_reference:
             # Store files in session state for persistent download buttons
             st.session_state["result_file"] = result_file.name
             st.session_state["unmatched_file"] = unmatched_file.name
+            st.session_state["preview_data"] = pd.DataFrame(
+                [[ref, "Matchad" if ref in cleaned_pdf_names else "Ej matchad"] for ref in sorted_refs],
+                columns=["Referensnamn", "Matchstatus"]
+            )
 
             st.success("Bearbetning klar!")
 
         except Exception as e:
             st.error(f"Ett fel uppstod: {e}")
+
+# Show preview table if available
+if "preview_data" in st.session_state:
+    st.subheader("Förhandsgranskning av resultat")
+    st.dataframe(st.session_state["preview_data"], use_container_width=True)
 
 # Show download buttons if files exist in session state
 if "result_file" in st.session_state and "unmatched_file" in st.session_state:
