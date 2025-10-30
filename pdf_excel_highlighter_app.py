@@ -12,8 +12,8 @@ st.title("Jämför ritningsförteckning med PDF-filer")
 st.markdown("""
 Ladda upp ritningar och ritningsförteckning och jämför.  
 I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
-samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
-OBS ritningar måste ha namn med minst tre olika segment separerade med - eller _ (ex A-1-100 eller W_50.1_1_0100).
+samt en lista på de ritningar som är med som PDF men inte finns i förteckning.  
+OBS ritningar måste ha namn med minst tre olika segment separerade med - eller _ (tex A-1-100 eller W_50.1_1_0100).  
 v.1.29
 """)
 
