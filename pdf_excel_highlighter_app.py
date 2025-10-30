@@ -14,7 +14,7 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
 OBS ritningar måste ha namn med minst tre olika segment separerade med - eller _ (ex A-1-100 eller W_50.1_1_0100).
-v.1.27
+v.1.28
 """)
 
 # Upload files
@@ -68,11 +68,10 @@ if start_processing and uploaded_pdfs and uploaded_reference:
 
             progress.progress(2 / total_steps)
 
-            # Step 3: Filter reference texts using regex, exclude generic terms and dates
+            # Step 3: Filter reference texts using regex, exclude dates
             filtered_reference_texts = [
                 ref for ref in reference_texts
                 if drawing_pattern.match(ref)
-                and not any(term in ref for term in exclude_terms)
                 and not re.match(r'^202\d', ref)  # Exclude dates starting with 202
             ]
 
