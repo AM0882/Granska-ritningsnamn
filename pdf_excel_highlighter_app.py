@@ -14,7 +14,7 @@ Ladda upp ritningar och ritningsförteckning och jämför.
 I resultatet fås en ritningsförteckning där det står om ritningen är matchad mot en PDF eller inte,  
 samt en lista på de ritningar som är med som PDF men inte finns i förteckning.
 OBS ritningar måste ha namn med minst tre olika segment separerade med - eller _ (ex A-1-100 eller W_50.1_1_0100).
-v.1.28
+v.1.29
 """)
 
 # Upload files
@@ -30,7 +30,10 @@ def clean_text(text):
     return re.sub(r'\.(pdf|docx?|xlsx?|txt|jpg|png|csv)$', '', text)
 
 # Flexible regex for valid drawing/document codes
-drawing_pattern = re.compile(r'^(?=.*\d)[a-z0-9]+([-_][a-z0-9]+){2,}$', re.IGNORECASE)
+drawing_pattern = re.compile(
+    r'^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z0-9]+([-_][a-zA-Z0-9]+){2,}$',
+    re.IGNORECASE
+)
 
 # Regex for extracting codes from PDF (handles both formats)
 drawing_number_pattern = re.compile(r'\b[0-9A-Za-z]+(?:[-_][0-9A-Za-z]+){2,}\b')
